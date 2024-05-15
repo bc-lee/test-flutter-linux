@@ -1,0 +1,23 @@
+From: Byoungchan Lee <byoungchan.lee@gmx.com>
+Subject: Remove unsupported cross-build exception for Linux
+
+
+diff --git a/packages/flutter_tools/lib/src/commands/build_linux.dart b/packages/flutter_tools/lib/src/commands/build_linux.dart
+index 08623f373f..ade77ef419 100644
+--- a/packages/flutter_tools/lib/src/commands/build_linux.dart
++++ b/packages/flutter_tools/lib/src/commands/build_linux.dart
+@@ -78,12 +78,6 @@ class BuildLinuxCommand extends BuildSubCommand {
+         targetPlatform != TargetPlatform.linux_arm64) {
+       throwToolExit('"cross-building" only supported on Linux x64 hosts.');
+     }
+-    // TODO(fujino): https://github.com/flutter/flutter/issues/74929
+-    if (_operatingSystemUtils.hostPlatform == HostPlatform.linux_x64 &&
+-        targetPlatform == TargetPlatform.linux_arm64) {
+-      throwToolExit(
+-          'Cross-build from Linux x64 host to Linux arm64 target is not currently supported.');
+-    }
+     displayNullSafetyMode(buildInfo);
+     final Logger logger = globals.logger;
+     await buildLinux(
+-- 
+2.45.0

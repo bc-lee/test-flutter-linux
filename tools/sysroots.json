@@ -1,0 +1,19 @@
+{
+  "comment": "See https://github.com/chromium/chromium/blob/753e7b2b7bf245f30c0610559497d72c423ed95d/DEPS#L556",
+  "sysroots": [
+    {
+      "name": "debian_bullseye_amd64-sysroot",
+      "bucket": "chrome-linux-sysroot",
+      "object_name": "dec7a3a0fc5b83b909cba1b6d119077e0429a138eadef6bf5a0f2e03b1904631",
+      "sha256": "dec7a3a0fc5b83b909cba1b6d119077e0429a138eadef6bf5a0f2e03b1904631",
+      "size_bytes": 129948576
+    },
+    {
+      "name": "debian_bullseye_arm64-sysroot",
+      "bucket": "chrome-linux-sysroot",
+      "object_name": "308e23faba3174bd01accfe358467b8a40fad4db4c49ef629da30219f65a275f",
+      "sha256": "308e23faba3174bd01accfe358467b8a40fad4db4c49ef629da30219f65a275f",
+      "size_bytes": 108470444
+    }
+  ]
+}

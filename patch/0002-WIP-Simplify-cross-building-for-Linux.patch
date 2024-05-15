@@ -1,0 +1,30 @@
+From: Byoungchan Lee <byoungchan.lee@gmx.com>
+Subject: [WIP] Simplify cross-building for Linux
+
+
+diff --git a/packages/flutter_tools/lib/src/linux/build_linux.dart b/packages/flutter_tools/lib/src/linux/build_linux.dart
+index 82f6215df5..33af600f17 100644
+--- a/packages/flutter_tools/lib/src/linux/build_linux.dart
++++ b/packages/flutter_tools/lib/src/linux/build_linux.dart
+@@ -156,18 +156,10 @@ Future<void> _runCmake(String buildModeName, Directory sourceDir, Directory buil
+       // Support cross-building for arm64 targets on x64 hosts.
+       // (Cross-building for x64 on arm64 hosts isn't supported now.)
+       if (needCrossBuild)
+-        '-DFLUTTER_TARGET_PLATFORM_SYSROOT=$targetSysroot',
+-      if (needCrossBuildOptionsForArm64)
+-        '-DCMAKE_C_COMPILER_TARGET=aarch64-linux-gnu',
+-      if (needCrossBuildOptionsForArm64)
+-        '-DCMAKE_CXX_COMPILER_TARGET=aarch64-linux-gnu',
++        '-DCMAKE_TOOLCHAIN_FILE=$targetSysroot/cmake-toolchain.cmake',
+       sourceDir.path,
+     ],
+     workingDirectory: buildDir.path,
+-    environment: <String, String>{
+-      'CC': 'clang',
+-      'CXX': 'clang++',
+-    },
+     trace: true,
+   );
+   if (result != 0) {
+-- 
+2.45.0

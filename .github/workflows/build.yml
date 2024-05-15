@@ -1,0 +1,121 @@
+name: Build
+
+defaults:
+  run:
+    shell: bash -eo pipefail {0}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Prepare
+      run: |
+        set -x
+        export DEBIAN_FRONTEND=noninteractive
+        sudo apt update
+        sudo apt install -y build-essential cmake meson ninja-build libgtk-3-dev
+        tools/download_clang.sh
+        tools/download_sysroot.sh arm64
+        tools/build_pkgconf.sh
+        tools/create_cmake_arm64_toolchain.sh
+
+    - name: Test if the toolchain is working
+      run: |
+        set -x
+        ROOT=$(pwd)
+        CLANG_PATH="$ROOT/third_party/llvm-build/Release+Asserts/bin"
+        cd tools/validation_toolchain
+        # Host
+        CC="$CLANG_PATH/clang" CXX="$CLANG_PATH/clang++" cmake -G Ninja -B cmake-build -S .
+        ninja -C cmake-build -v
+        file_result=$(file -b cmake-build/test_compile)
+        set +e
+        echo "$file_result" | grep -qE "ELF 64-bit LSB.*executable, x86-64"
+        ret=$?
+        set -e
+        if [[ $ret -ne 0 ]]; then
+          echo "Host toolchain failed."
+          exit 1
+        fi
+        # Arm64
+        cmake -G Ninja -B cmake-build-arm64 -S . -DCMAKE_TOOLCHAIN_FILE=$ROOT/sysroots/debian_bullseye_arm64-sysroot/cmake-toolchain.cmake
+        ninja -C cmake-build-arm64 -v
+        file_result=$(file -b cmake-build-arm64/test_compile)
+        set +e
+        echo "$file_result" | grep -qE "ELF 64-bit LSB.*executable, ARM aarch64"
+        ret=$?
+        set -e
+        if [[ $ret -ne 0 ]]; then
+          echo "Arm64 toolchain failed."
+          exit 1
+        fi
+
+    - name: Setup Flutter
+      run: |
+        set -x
+        git clone https://github.com/flutter/flutter -b master
+        export PATH="$PATH:$(pwd)/flutter/bin"
+        echo "$(pwd)/flutter/bin" >> $GITHUB_PATH
+        flutter --version --suppress-analytics
+        flutter config --no-analytics
+        flutter config --no-cli-animations
+        dart --version
+        
+        flutter precache
+
+    - name: Build Host
+      run: |
+        set -x
+        ROOT=$(pwd)
+        dart pub get
+        flutter build linux --debug
+        cd build/linux/x64/debug/bundle
+        zip -r $ROOT/build-linux-x64-debug.zip .
+
+    - name: Patch Flutter
+      run: |
+        set -x
+        ROOT=$(pwd)
+
+        # Download linux-arm64 artifacts
+        linux_sdk_stamp=$(cat flutter/bin/cache/linux-sdk.stamp)
+        mkdir -p flutter/bin/cache/artifacts/engine/linux-arm64 
+        pushd flutter/bin/cache/artifacts/engine/linux-arm64
+        curl -O https://storage.googleapis.com/flutter_infra_release/flutter/$linux_sdk_stamp/linux-arm64/artifacts.zip
+        unzip -o artifacts.zip
+        rm artifacts.zip
+        curl -O https://storage.googleapis.com/flutter_infra_release/flutter/$linux_sdk_stamp/linux-arm64-debug/linux-arm64-flutter-gtk.zip
+        unzip -o linux-arm64-flutter-gtk.zip
+        rm linux-arm64-flutter-gtk.zip
+        popd
+        
+        pushd flutter
+        # Patch flutter
+        patch -p1 < $ROOT/patch/0001-Remove-unsupported-cross-build-exception-for-Linux.patch
+        patch -p1 < $ROOT/patch/0002-WIP-Simplify-cross-building-for-Linux.patch
+        popd
+
+    - name: Build Arm64
+      run: |
+        set -x
+        ROOT=$(pwd)
+
+        dart pub get
+        dart flutter/packages/flutter_tools/bin/flutter_tools.dart build linux --debug --target-platform linux-arm64 --target-sysroot $ROOT/sysroots/debian_bullseye_arm64-sysroot
+        cd build/linux/arm64/debug/bundle
+        zip -r $ROOT/build-linux-arm64-debug.zip .
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-build
+        path: build-linux-*.zip
